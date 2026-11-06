@@ -8,20 +8,19 @@
   CÓMO USARLO
   1. Crea un proyecto en https://console.firebase.google.com
   2. Añade una app web y copia su configuración en firebaseConfig (abajo).
-  3. Crea una base de datos Firestore.
-  4. Crea la colección "marcador" con un documento "partido" con estos campos:
-       nombreLocal      (string)  "Equipo A"
-       nombreVisitante  (string)  "Equipo B"
-       local            (number)  0
-       visitante        (number)  0
-  5. Reglas de Firestore para la demo (lectura pública, nadie escribe desde la web;
-     tú editas desde la consola, que no pasa por las reglas):
-       rules_version = '2';
-       service cloud.firestore {
-         match /databases/{database}/documents {
-           match /marcador/{doc} {
-             allow read: if true;
-             allow write: if false;
+  3. Crea una Realtime Database. Comprueba que firebaseConfig incluye databaseURL.
+  4. Importa marcador-rtdb.json (menú ⋮ > Importar JSON). Crea esta estructura:
+       marcador/partido/nombreLocal      "Equipo A"
+       marcador/partido/nombreVisitante  "Equipo B"
+       marcador/partido/local            0
+       marcador/partido/visitante        0
+  5. Reglas de Realtime Database para la demo (lectura pública, nadie escribe
+     desde la web; tú editas desde la consola, que no pasa por las reglas):
+       {
+         "rules": {
+           "marcador": {
+             ".read": true,
+             ".write": false
            }
          }
        }
@@ -139,9 +138,9 @@
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+  import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
-  // 👇 Pega aquí la configuración de tu app web de Firebase
+// Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyARt5noncHIcDDt9NlzCcAJMp1beO7KzVw",
   authDomain: "marcador-e7b0a.firebaseapp.com",
@@ -181,20 +180,20 @@ const firebaseConfig = {
     aviso("Falta la configuración de Firebase: edita firebaseConfig en este archivo.");
   } else {
     const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+    const db = getDatabase(app);
     let actualizaciones = 0;
 
-    // ⭐ La parte importante: escuchar el documento en tiempo real.
-    // Esta función se ejecuta al cargar y cada vez que el documento cambia.
-    onSnapshot(
-      doc(db, "marcador", "partido"),
+    // ⭐ La parte importante: escuchar el nodo en tiempo real.
+    // Esta función se ejecuta al cargar y cada vez que el nodo cambia.
+    onValue(
+      ref(db, "marcador/partido"),
       (snap) => {
         if (!snap.exists()) {
           estado("Sin datos", "error");
-          aviso('No existe el documento "marcador/partido" en Firestore.');
+          aviso('No existe el nodo "marcador/partido" en Realtime Database.');
           return;
         }
-        const d = snap.data();
+        const d = snap.val();
         $("aviso").style.display = "none";
         estado("En directo", "vivo");
 
@@ -209,7 +208,7 @@ const firebaseConfig = {
       },
       (err) => {
         estado("Error", "error");
-        aviso("Error al leer Firestore: " + err.message);
+        aviso("Error al leer Realtime Database: " + err.message);
       }
     );
   }
